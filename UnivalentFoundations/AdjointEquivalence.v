@@ -192,3 +192,112 @@ Definition cmu_theorem {A B} (f : A -> B) (g : B -> A)
   (is_section : forall y, f (g y) ~~> y) (is_retraction : forall x, g (f x) ~~> x)
   : is_equiv f
   := adjoint_to_equiv f (adjointify f (existT _ g (pair is_section is_retraction))).
+
+(** All sorts of nice things follow from this theorem.  For instance,
+we can deduce the following lemma, proven more directly before. *)
+
+Definition equiv_pointwise_idmap_ALT A (f : A -> A) (p : forall x, f x ~~> x)
+  : is_equiv f
+  := cmu_theorem f (idmap _) p p.
+
+(** And the 2-out-of-3 property for equivalences. *)
+
+Definition equiv_compose {A B C} (f : equiv A B) (g : equiv B C) : (equiv A C).
+Proof.
+  intros.
+  exists (g o f).
+  apply @cmu_theorem with
+    (A := A) (B := C)
+    (f := g o f)
+    (g := (equiv_inv f) o (equiv_inv g) ).
+  intro y.
+  path_via (g ((f o (equiv_inv f)) (equiv_inv g y))).
+  path_via (g (equiv_inv g y)).
+  apply map.
+  apply equiv_inv_is_section.
+  apply equiv_inv_is_section.
+  intro x.
+  path_via (equiv_inv f (((equiv_inv g) o g) (f x))).
+  path_via (equiv_inv f (f x)).
+  apply map.
+  apply equiv_inv_is_retraction.
+  apply equiv_inv_is_retraction.
+Defined.
+
+Definition equiv_cancel_right {A B C} (f : equiv A B) (g : B -> C) :
+  is_equiv (g o f) -> is_equiv g.
+Proof.
+  intros A B C f g H.
+  set (gof := (existT _ (g o f) H) : equiv A C).
+  apply @cmu_theorem with
+    (A := B) (B := C)
+    (f := g)
+    (g := f o equiv_inv gof).
+  intro y.
+  path_via ((gof) (equiv_inv gof y)).
+  apply equiv_inv_is_section.
+  intro x.
+  path_via (f (equiv_inv gof (g x))).
+  path_via (f (equiv_inv f x)).
+  path_via (f (equiv_inv gof (gof (equiv_inv f x)))).
+  apply map. apply map.
+  path_via (g (f (equiv_inv f x))).
+  apply map. apply opposite. apply equiv_inv_is_section.
+  apply map.
+  apply equiv_inv_is_retraction.
+  apply equiv_inv_is_section.
+Defined.
+
+Definition equiv_cancel_left {A B C} (f : A -> B) (g : equiv B C) :
+  is_equiv (g o f) -> is_equiv f.
+Proof.
+  intros A B C f g H.
+  set (gof := existT _ (g o f) H : equiv A C).
+  apply @cmu_theorem with
+    (A := A) (B := B)
+    (f := f)
+    (g := equiv_inv gof o g).
+  intros y.
+  path_via (equiv_inv g (g y)).
+  path_via (equiv_inv g (g (f (equiv_inv gof (g y))))).
+  apply opposite, equiv_inv_is_retraction.
+  apply map.
+  path_via (gof (equiv_inv gof (g y))).
+  apply equiv_inv_is_section.
+  apply equiv_inv_is_retraction.
+  intros x.
+  path_via (equiv_inv gof (gof x)).
+  apply equiv_inv_is_retraction.
+Defined.
+
+(** André Joyal suggested the following definition of equivalences,
+and to call it "h-isomorphism". *)
+
+Definition is_hiso {A B} (f : A -> B) :=
+  ( { g:B->A & forall x, g (f x) ~~> x} *
+    { h:B->A & forall y, f (h y) ~~> y} )%type.
+
+Theorem equiv_to_hiso {A B} (f : equiv A B) : is_hiso f.
+Proof.
+  intros A B f.
+  split.
+  exists (equiv_inv f).
+  apply equiv_inv_is_retraction.
+  exists (equiv_inv f).
+  apply equiv_inv_is_section.
+Defined.
+
+Theorem hiso_to_equiv {A B} (f : A -> B) : is_hiso f -> is_equiv f.
+Proof.
+  intros A B f H.
+  destruct H as ((g, is_retraction), (h, is_section)).
+  apply @cmu_theorem with (A := A) (B := B) (f := f) (g := g).
+  intro y.
+  path_via (f (h y)).
+  apply map.
+  path_via (g (f (h (y)))).
+  apply map, opposite, is_section.
+  assumption.
+Defined.
+
+(** Of course, the harder part is showing that is_hiso is a proposition. *)
